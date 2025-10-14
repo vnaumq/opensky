@@ -1,0 +1,14 @@
+opensky:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: "{{ env_var('POSTGRES_HOST', 'localhost') }}"
+      user: "{{ env_var('POSTGRES_USER', 'opensky_user') }}"
+      password: "{{ env_var('POSTGRES_PASSWORD') }}"
+      port: "{{ env_var('POSTGRES_PORT', 5432) }}"
+      dbname: "{{ env_var('POSTGRES_DB', 'opensky') }}"
+      schema: public
+      threads: 4
+      keepalives_idle: 0
+      search_path: public
