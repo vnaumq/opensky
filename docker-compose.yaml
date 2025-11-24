@@ -54,6 +54,11 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./init_postgres:/docker-entrypoint-initdb.d
+    command: >
+      postgres
+      -c wal_level=logical
+      -c max_replication_slots=4
+      -c max_wal_senders=4
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U opensky_user -d opensky"]
       interval: 30s
@@ -217,6 +222,104 @@ services:
       SPARK_SSL_ENABLED: no
     volumes:
       - ./spark_jobs:/opt/bitnami/spark/jobs
+      - ./data:/opt/bitnami/spark/data
+
+  # ClickHouse
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    hostname: clickhouse
+    container_name: opensky-clickhouse
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    environment:
+      CLICKHOUSE_DB: opensky
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: clickhouse_password
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+      - ./config/clickhouse:/etc/clickhouse-server/config.d
+      - ./init_clickhouse:/docker-entrypoint-initdb.d
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+
+  # MinIO (S3 compatible storage)
+  minio:
+    image: minio/minio:latest
+    hostname: minio
+    container_name: opensky-minio
+    ports:
+      - "9001:9001"
+      - "9000:9000"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin123
+    volumes:
+      - minio-data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  # Debezium Connect
+  debezium-connect:
+    image: debezium/connect:2.5
+    hostname: debezium-connect
+    container_name: opensky-debezium-connect
+    depends_on:
+      - kafka
+      - postgres
+    ports:
+      - "8083:8083"
+    environment:
+      BOOTSTRAP_SERVERS: kafka:29092
+      GROUP_ID: 1
+      CONFIG_STORAGE_TOPIC: my_connect_configs
+      OFFSET_STORAGE_TOPIC: my_connect_offsets
+      STATUS_STORAGE_TOPIC: my_connect_statuses
+      CONFIG_STORAGE_REPLICATION_FACTOR: 1
+      OFFSET_STORAGE_REPLICATION_FACTOR: 1
+      STATUS_STORAGE_REPLICATION_FACTOR: 1
+    volumes:
+      - ./config/debezium:/kafka/connect
+
+  # Jupyter Notebook
+  jupyter:
+    image: jupyter/pyspark-notebook:latest
+    hostname: jupyter
+    container_name: opensky-jupyter
+    ports:
+      - "8888:8888"
+    environment:
+      JUPYTER_ENABLE_LAB: yes
+      SPARK_MASTER: spark://spark-master:7077
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: opensky
+      POSTGRES_USER: opensky_user
+      POSTGRES_PASSWORD: opensky_password
+      CLICKHOUSE_HOST: clickhouse
+      CLICKHOUSE_PORT: 9000
+      CLICKHOUSE_DB: opensky
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin123
+    volumes:
+      - ./jupyter:/home/jovyan/work
+      - ./spark_jobs:/home/jovyan/spark_jobs
+      - ./src:/home/jovyan/src
+      - ./data:/home/jovyan/data
+    command: >
+      start-notebook.sh
+      --NotebookApp.token=''
+      --NotebookApp.password=''
+      --NotebookApp.ip='0.0.0.0'
+      --NotebookApp.allow_root=True
 
 volumes:
   zookeeper-data:
@@ -227,6 +330,8 @@ volumes:
   airflow-logs:
   prometheus-data:
   grafana-data:
+  clickhouse-data:
+  minio-data:
 
 networks:
   default:

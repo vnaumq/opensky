@@ -30,6 +30,20 @@ class Settings(BaseSettings):
     spark_master: str = Field(default="local[*]", env="SPARK_MASTER")
     spark_app_name: str = Field(default="opensky_processor", env="SPARK_APP_NAME")
 
+    # ClickHouse
+    clickhouse_host: str = Field(default="localhost", env="CLICKHOUSE_HOST")
+    clickhouse_port: int = Field(default=8123, env="CLICKHOUSE_PORT")
+    clickhouse_db: str = Field(default="opensky", env="CLICKHOUSE_DB")
+    clickhouse_user: str = Field(default="default", env="CLICKHOUSE_USER")
+    clickhouse_password: str = Field(default="clickhouse_password", env="CLICKHOUSE_PASSWORD")
+
+    # MinIO / S3
+    minio_endpoint: str = Field(default="localhost:9000", env="MINIO_ENDPOINT")
+    minio_access_key: str = Field(default="minioadmin", env="MINIO_ACCESS_KEY")
+    minio_secret_key: str = Field(default="minioadmin123", env="MINIO_SECRET_KEY")
+    minio_bucket_raw: str = Field(default="raw-data", env="MINIO_BUCKET_RAW")
+    minio_bucket_processed: str = Field(default="processed-data", env="MINIO_BUCKET_PROCESSED")
+
     # Airflow
     airflow_home: str = Field(default="/opt/airflow", env="AIRFLOW_HOME")
     airflow_executor: str = Field(default="LocalExecutor", env="AIRFLOW__CORE__EXECUTOR")
