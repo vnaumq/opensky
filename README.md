@@ -213,7 +213,6 @@ opensky/
 │   └── grafana/                  # Grafana дашборды
 ├── config/                       # Конфигурационные файлы
 │   ├── clickhouse/               # ClickHouse конфиг
-│   └── debezium/                 # Debezium конфиг
 ├── init_clickhouse/              # Инициализация ClickHouse
 │   └── init.sql
 ├── scripts/                      # Скрипты управления
