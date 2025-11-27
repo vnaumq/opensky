@@ -1,14 +1,11 @@
 import requests
 import json
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timezone
+import os
 
-# читаем credentials
-with open('credentials.json') as f:
-    creds = json.load(f)
-
-CLIENT_ID = creds['clientId']
-CLIENT_SECRET = creds['clientSecret']
+CLIENT_ID = os.getenv('CLIENT_ID')
+CLIENT_SECRET = os.getenv('CLIENT_SECRET')
 
 url = "https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token"
 
@@ -51,7 +48,7 @@ if response.status_code == 200:
         "sensors", "geo_altitude", "squawk", "spi", "position_source"
     ]
     df = pd.DataFrame(data["states"], columns=cols)
-    df["fetch_time"] = datetime.utcfromtimestamp(data["time"])
+    df["fetch_time"] = datetime.fromtimestamp(data["time"], tz=timezone.utc)
     df.to_csv(f"opensky_flights_{data['time']}.csv", index=False)
     print(f"✅ Получено {len(df)} рейсов и сохранено в CSV.")
 else:
