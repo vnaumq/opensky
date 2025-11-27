@@ -1,5 +1,5 @@
-# Основные зависимости
-requests==2.31.0
+# requirements.txt
+requests
 pandas==2.1.4
 numpy==1.24.3
 python-dotenv==1.0.0
@@ -13,14 +13,14 @@ confluent-kafka==2.3.0
 # Spark
 pyspark==3.5.0
 
-# Airflow
-apache-airflow==2.8.1
-apache-airflow-providers-postgres==5.10.0
-apache-airflow-providers-docker==3.7.0
+# Airflow - ЗАКОММЕНТИРУЙТЕ или удалите для collector
+# apache-airflow==2.8.1
+# apache-airflow-providers-postgres==5.10.0
+# apache-airflow-providers-docker==3.7.0
 
-# DBT
-dbt-core==1.7.4
-dbt-postgres==1.7.4
+# DBT - ЗАКОММЕНТИРУЙТЕ или удалите для collector
+# dbt-core==1.7.4
+# dbt-postgres==1.7.4
 
 # Мониторинг и логирование
 prometheus-client==0.19.0
@@ -28,7 +28,7 @@ structlog==23.2.0
 
 # База данных
 psycopg2-binary==2.9.9
-sqlalchemy==2.0.25
+# sqlalchemy==2.0.25  # КОНФЛИКТУЕТ С AIRFLOW - удалите или закомментируйте
 
 # Утилиты
 click==8.1.7
@@ -42,10 +42,7 @@ clickhouse-connect==0.6.23
 boto3==1.34.0
 s3fs==2024.2.0
 
-# Jupyter
-jupyter==1.0.0
-notebook==7.0.6
-ipykernel==6.29.0
-
-# Debezium (для работы через REST API)
-requests==2.31.0
+# Jupyter - ЗАКОММЕНТИРУЙТЕ для collector
+# jupyter==1.0.0
+# notebook==7.0.6
+# ipykernel==6.29.0

@@ -43,7 +43,7 @@ services:
     hostname: postgres
     container_name: opensky-postgres
     ports:
-      - "5432:5432"
+      - "5433:5432"
     environment:
       POSTGRES_DB: opensky
       POSTGRES_USER: opensky_user
@@ -63,104 +63,38 @@ services:
       timeout: 10s
       retries: 3
 
-  # Redis для кэширования
-  redis:
-    image: redis:7-alpine
-    hostname: redis
-    container_name: opensky-redis
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis-data:/data
-    command: redis-server --appendonly yes
-
-  # Airflow Webserver
-  airflow-webserver:
-    image: apache/airflow:2.8.1
-    hostname: airflow-webserver
-    container_name: opensky-airflow-webserver
-    depends_on:
-      - postgres
-      - redis
-    ports:
-      - "8080:8080"
-    environment:
-      AIRFLOW__CORE__EXECUTOR: LocalExecutor
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://opensky_user:opensky_password@postgres:5432/opensky
-      AIRFLOW__CORE__FERNET_KEY: 'your-fernet-key-here'
-      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
-      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
-      AIRFLOW__API__AUTH_BACKENDS: 'airflow.api.auth.backend.basic_auth'
-      AIRFLOW__WEBSERVER__EXPOSE_CONFIG: 'true'
-      AIRFLOW__WEBSERVER__SECRET_KEY: 'your-secret-key-here'
-    volumes:
-      - ./airflow_dags:/opt/airflow/dags
-      - ./dbt:/opt/airflow/dbt
-      - ./src:/opt/airflow/src
-      - ./config:/opt/airflow/config
-      - airflow-logs:/opt/airflow/logs
-    command: >
-      bash -c "
-        airflow db init &&
-        airflow users create --username admin --firstname Admin --lastname User --role Admin --email admin@opensky.com --password admin &&
-        airflow webserver --port 8080
-      "
-
-  # Airflow Scheduler
-  airflow-scheduler:
-    image: apache/airflow:2.8.1
-    hostname: airflow-scheduler
-    container_name: opensky-airflow-scheduler
-    depends_on:
-      - postgres
-      - redis
-      - airflow-webserver
-    environment:
-      AIRFLOW__CORE__EXECUTOR: LocalExecutor
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://opensky_user:opensky_password@postgres:5432/opensky
-      AIRFLOW__CORE__FERNET_KEY: 'your-fernet-key-here'
-      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
-      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
-    volumes:
-      - ./airflow_dags:/opt/airflow/dags
-      - ./dbt:/opt/airflow/dbt
-      - ./src:/opt/airflow/src
-      - ./config:/opt/airflow/config
-      - airflow-logs:/opt/airflow/logs
-    command: airflow scheduler
-
   # Prometheus для мониторинга
-  prometheus:
-    image: prom/prometheus:latest
-    hostname: prometheus
-    container_name: opensky-prometheus
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
-      - prometheus-data:/prometheus
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/etc/prometheus/console_libraries'
-      - '--web.console.templates=/etc/prometheus/consoles'
-      - '--storage.tsdb.retention.time=200h'
-      - '--web.enable-lifecycle'
+  # prometheus:
+  #   image: prom/prometheus:latest
+  #   hostname: prometheus
+  #   container_name: opensky-prometheus
+  #   ports:
+  #     - "9090:9090"
+  #   volumes:
+  #     - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+  #     - prometheus-data:/prometheus
+  #   command:
+  #     - '--config.file=/etc/prometheus/prometheus.yml'
+  #     - '--storage.tsdb.path=/prometheus'
+  #     - '--web.console.libraries=/etc/prometheus/console_libraries'
+  #     - '--web.console.templates=/etc/prometheus/consoles'
+  #     - '--storage.tsdb.retention.time=200h'
+  #     - '--web.enable-lifecycle'
 
   # Grafana для визуализации
-  grafana:
-    image: grafana/grafana:latest
-    hostname: grafana
-    container_name: opensky-grafana
-    ports:
-      - "3000:3000"
-    environment:
-      GF_SECURITY_ADMIN_PASSWORD: admin
-      GF_USERS_ALLOW_SIGN_UP: false
-    volumes:
-      - grafana-data:/var/lib/grafana
-      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
-      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+  # grafana:
+  #   image: grafana/grafana:latest
+  #   hostname: grafana
+  #   container_name: opensky-grafana
+  #   ports:
+  #     - "3000:3000"
+  #   environment:
+  #     GF_SECURITY_ADMIN_PASSWORD: admin
+  #     GF_USERS_ALLOW_SIGN_UP: false
+  #   volumes:
+  #     - grafana-data:/var/lib/grafana
+  #     - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+  #     - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
 
   # Data Collector
   data-collector:
@@ -178,8 +112,8 @@ services:
       POSTGRES_DB: opensky
       POSTGRES_USER: opensky_user
       POSTGRES_PASSWORD: opensky_password
-      OPENSKY_CLIENT_ID: ${OPENSKY_CLIENT_ID}
-      OPENSKY_CLIENT_SECRET: ${OPENSKY_CLIENT_SECRET}
+      CLIENT_ID: ${CLIENT_ID}
+      CLIENT_SECRET: ${CLIENT_SECRET}
     volumes:
       - ./src:/app/src
       - ./config:/app/config
@@ -229,7 +163,7 @@ services:
     container_name: opensky-clickhouse
     ports:
       - "8123:8123"
-      - "9000:9000"
+      - "9009:9000"
     environment:
       CLICKHOUSE_DB: opensky
       CLICKHOUSE_USER: default
@@ -265,26 +199,26 @@ services:
       retries: 3
 
   # Debezium Connect
-  debezium-connect:
-    image: debezium/connect:2.5
-    hostname: debezium-connect
-    container_name: opensky-debezium-connect
-    depends_on:
-      - kafka
-      - postgres
-    ports:
-      - "8083:8083"
-    environment:
-      BOOTSTRAP_SERVERS: kafka:29092
-      GROUP_ID: 1
-      CONFIG_STORAGE_TOPIC: my_connect_configs
-      OFFSET_STORAGE_TOPIC: my_connect_offsets
-      STATUS_STORAGE_TOPIC: my_connect_statuses
-      CONFIG_STORAGE_REPLICATION_FACTOR: 1
-      OFFSET_STORAGE_REPLICATION_FACTOR: 1
-      STATUS_STORAGE_REPLICATION_FACTOR: 1
-    volumes:
-      - ./config/debezium:/kafka/connect
+  # debezium-connect:
+  #   image: debezium/connect:2.5
+  #   hostname: debezium-connect
+  #   container_name: opensky-debezium-connect
+  #   depends_on:
+  #     - kafka
+  #     - postgres
+  #   ports:
+  #     - "8083:8083"
+  #   environment:
+  #     BOOTSTRAP_SERVERS: kafka:29092
+  #     GROUP_ID: 1
+  #     CONFIG_STORAGE_TOPIC: my_connect_configs
+  #     OFFSET_STORAGE_TOPIC: my_connect_offsets
+  #     STATUS_STORAGE_TOPIC: my_connect_statuses
+  #     CONFIG_STORAGE_REPLICATION_FACTOR: 1
+  #     OFFSET_STORAGE_REPLICATION_FACTOR: 1
+  #     STATUS_STORAGE_REPLICATION_FACTOR: 1
+  #   volumes:
+  #     - ./config/debezium:/kafka/connect
 
   # Jupyter Notebook
   jupyter:
@@ -302,7 +236,7 @@ services:
       POSTGRES_USER: opensky_user
       POSTGRES_PASSWORD: opensky_password
       CLICKHOUSE_HOST: clickhouse
-      CLICKHOUSE_PORT: 9000
+      CLICKHOUSE_PORT: 9009
       CLICKHOUSE_DB: opensky
       MINIO_ENDPOINT: minio:9000
       MINIO_ACCESS_KEY: minioadmin
@@ -324,10 +258,10 @@ volumes:
   zookeeper-logs:
   kafka-data:
   postgres-data:
-  redis-data:
-  airflow-logs:
-  prometheus-data:
-  grafana-data:
+  # redis-data:
+  # airflow-logs:
+  # prometheus-data:
+  # grafana-data:
   clickhouse-data:
   minio-data:
 

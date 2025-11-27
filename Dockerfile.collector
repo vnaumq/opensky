@@ -29,4 +29,5 @@ ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
 
 # Команда по умолчанию
-CMD ["python", "-m", "src.data_collector"]
+# CMD ["python", "-m", "src.data_collector"]
+CMD ["echo", "hello world"]
