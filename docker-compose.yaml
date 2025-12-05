@@ -222,7 +222,9 @@ services:
 
   # Jupyter Notebook
   jupyter:
-    image: jupyter/pyspark-notebook:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.jupyter
     hostname: jupyter
     container_name: opensky-jupyter
     ports:
