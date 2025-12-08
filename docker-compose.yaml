@@ -237,6 +237,7 @@ services:
       POSTGRES_DB: opensky
       POSTGRES_USER: opensky_user
       POSTGRES_PASSWORD: opensky_password
+      POSTGRES_PORT: 5432
       CLICKHOUSE_HOST: clickhouse
       CLICKHOUSE_PORT: 9009
       CLICKHOUSE_DB: opensky

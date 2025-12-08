@@ -25,7 +25,7 @@ print("\n" + "="*50)
 flights = config.get_opensky_data(config.get_authorization_token(CLIENT_ID, CLIENT_SECRET))
 try:
     while True:
-        for flight in flights[:5]:
+        for flight in flights[:100]:
             if flight:
                 message = {
                     "icao24": flight[0],

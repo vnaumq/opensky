@@ -1,5 +1,15 @@
 import requests
+import os
+from dotenv import load_dotenv
+from sqlalchemy import create_engine
+import psycopg2
 
+load_dotenv()
+POSTGRES_HOST = os.getenv('POSTGRES_HOST')
+POSTGRES_DB = os.getenv('POSTGRES_DB')
+POSTGRES_USER = os.getenv('POSTGRES_USER')
+POSTGRES_PASSWORD = os.getenv('POSTGRES_PASSWORD')
+POSTGRES_PORT = os.getenv('POSTGRES_PORT')
 
 def get_authorization_token(client_id:str, client_secret: str):
 
@@ -46,3 +56,18 @@ def get_opensky_data(token):
         print(e)
 
         return []
+
+def get_engine_postgresql():
+    return create_engine(
+    f"postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
+    )
+
+
+def get_jdbc_config():
+    url = f"jdbc:postgresql://{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
+    properties = {
+        "user": POSTGRES_USER,
+        "password": POSTGRES_PASSWORD,
+        "driver": "org.postgresql.Driver"
+    }
+    return url, properties
