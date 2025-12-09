@@ -25,7 +25,7 @@ print("\n" + "="*50)
 flights = config.get_opensky_data(config.get_authorization_token(CLIENT_ID, CLIENT_SECRET))
 try:
     while True:
-        for flight in flights[:100]:
+        for flight in flights[:101]:
             if flight:
                 message = {
                     "icao24": flight[0],
@@ -50,7 +50,7 @@ try:
 
                 producer.send('opensky', value=message)
                 print(f"SEND: {message['callsign']} ({message['icao24']})")
-
+        print('sleep 10....')
         time.sleep(10)
 
 except KeyboardInterrupt:

@@ -6,11 +6,12 @@ import json
 import config
 
 spark = SparkSession.builder \
-    .appName("OpenSky-to-PostgreSQL") \
+    .appName("OpenSky-Kafka-to-PostgreSQL") \
     .config("spark.jars.packages",
-            "org.apache.spark:spark-sql-kafka-0-3.5.0:3.5.0,"  # Kafka integration
+            "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0,"  # Kafka
             "org.postgresql:postgresql:42.7.4") \
     .config("spark.sql.adaptive.enabled", "true") \
+    .config("spark.sql.adaptive.coalescePartitions.enabled", "true") \
     .getOrCreate()
 
 spark.sparkContext.setLogLevel("WARN")
@@ -58,66 +59,55 @@ BATCH_SIZE = 100
 
 try:
     for message in consumer:
-        raw_flight = message.value  # это список из 17+ элементов
+        flight = message.value  # ← Это уже готовый словарь! Не список!
 
-        # Защита от кривых сообщений
-        if not isinstance(raw_flight, list) or len(raw_flight) < 17:
-            print("Bad message, skipping:", raw_flight)
+        # Защита от мусора
+        if not isinstance(flight, dict):
+            print("Пропускаем не-словарь:", flight)
             continue
 
-        # Формируем чистый словарь (обрабатываем None)
-        flight = {
-            "icao24": str(raw_flight[0]).strip().lower() if raw_flight[0] else None,
-            "callsign": str(raw_flight[1]).strip() if raw_flight[1] else None,
-            "origin_country": raw_flight[2],
-            "time_position": raw_flight[3],
-            "last_contact": raw_flight[4],
-            "longitude": raw_flight[5],
-            "latitude": raw_flight[6],
-            "baro_altitude": raw_flight[7],
-            "on_ground": raw_flight[8],
-            "velocity": raw_flight[9],
-            "true_track": raw_flight[10],
-            "vertical_rate": raw_flight[11],
-            "sensors": raw_flight[12],
-            "geo_altitude": raw_flight[13],
-            "squawk": raw_flight[14],
-            "spi": raw_flight[15],
-            "position_source": raw_flight[16],
-            # "ingestion_time": None  # добавим через Spark
-        }
+        # Чистим callsign от пробелов
+        if flight.get("callsign"):
+            flight["callsign"] = flight["callsign"].strip()
+        else:
+            flight["callsign"] = None
 
-        callsign = flight["callsign"] or "NO_CALLSIGN"
-        icao = flight["icao24"] or "unknown"
+        # Приводим числовые поля к float (на всякий случай, если где-то int)
+        numeric_fields = ["longitude", "latitude", "baro_altitude", "velocity",
+                          "true_track", "vertical_rate", "geo_altitude"]
+        for field in numeric_fields:
+            if flight.get(field) is not None:
+                flight[field] = float(flight[field])
 
-        print(f"RECEIVED: {callsign} ({icao}) @ {flight['latitude']:.4f}, {flight['longitude']:.4f}")
+        # Красивый вывод
+        callsign = flight.get("callsign") or "N/A"
+        icao24 = flight.get("icao24", "unknown")
+        lat = flight.get("latitude")
+        lon = flight.get("longitude")
 
+        print(f"RECEIVED: {callsign:<8} ({icao24})")
+
+        # Добавляем в батч
         batch.append(flight)
 
-        # Когда набрали батч — пишем в БД
+        # Сохраняем батч
         if len(batch) >= BATCH_SIZE:
-            # Создаём DataFrame
-            df = spark.createDataFrame(batch, schema=schema)
-            df = df.withColumn("ingestion_time", current_timestamp())
+            df = spark.createDataFrame(batch, schema=schema) \
+                      .withColumn("ingestion_time", current_timestamp())
 
-            # Записываем
-            df.write \
-                .mode("append") \
-                .jdbc(url=jdbc_url, table="flights_raw", properties=properties)
-
+            df.write.mode("append").jdbc(url=jdbc_url, table="flights_raw", properties=properties)
             print(f"SAVED {len(batch)} records to PostgreSQL")
             batch.clear()
 
 except KeyboardInterrupt:
-    print("\nStopping...")
+    print("\nОстанавливаем консюмер...")
 finally:
-    # Сохраняем остатки
     if batch:
         df = spark.createDataFrame(batch, schema=schema) \
-              .withColumn("ingestion_time", current_timestamp())
+                  .withColumn("ingestion_time", current_timestamp())
         df.write.mode("append").jdbc(url=jdbc_url, table="flights_raw", properties=properties)
         print(f"FINAL SAVE: {len(batch)} records")
 
     consumer.close()
     spark.stop()
-    print("Consumer stopped. All data saved.")
+    print("Готово. Все данные сохранены.")
